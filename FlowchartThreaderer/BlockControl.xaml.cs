@@ -52,5 +52,8 @@ namespace FlowchartThreaderer
             RectShape.Stroke = blackBrush;
             RhombShape.Stroke = blackBrush;
         }
+
+        public Point GetOutputPoint() => new Point(Canvas.GetLeft(this) + this.Width / 2, Canvas.GetTop(this) + this.Height);
+        public Point GetInputPoint() => new Point(Canvas.GetLeft(this) + this.Width / 2, Canvas.GetTop(this));
     }
 }

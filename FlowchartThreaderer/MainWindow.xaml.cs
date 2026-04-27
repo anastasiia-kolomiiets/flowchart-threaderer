@@ -20,6 +20,12 @@ namespace FlowchartThreaderer
         private Point offset;
         private BlockControl? lastSelectedBlock; // Зберігаємо посилання на останній вибраний блок
 
+        // Змінні для зв'язків
+        private ConnectionControl? tempConnection;
+        private bool isDrawingConnection = false;
+        private BlockControl? connectionSource;
+        private List<ConnectionControl> connections = new List<ConnectionControl>();
+
         public MainWindow()
         {
             InitializeComponent();
@@ -35,11 +41,27 @@ namespace FlowchartThreaderer
             Canvas.SetTop(block, 50);
 
             block.MouseDown += Block_MouseDown;
+            block.MouseUp += Block_MouseUp; // Додаємо подію відпускання для стрілок
             MainCanvas.Children.Add(block);
         }
 
         private void Block_MouseDown(object sender, MouseButtonEventArgs e)
         {
+            if (e.ChangedButton == MouseButton.Right) // Малювання стрілки
+            {
+                connectionSource = sender as BlockControl;
+                if (connectionSource != null)
+                {
+                    isDrawingConnection = true;
+                    tempConnection = new ConnectionControl();
+                    MainCanvas.Children.Add(tempConnection);
+                    Panel.SetZIndex(tempConnection, -1);
+                    connectionSource.CaptureMouse();
+                }
+                e.Handled = true;
+                return;
+            }
+
             // Знімаємо виділення з попереднього блоку
             lastSelectedBlock?.Unselect();
 
@@ -61,20 +83,67 @@ namespace FlowchartThreaderer
             e.Handled = true;
         }
 
+        private void Block_MouseUp(object sender, MouseButtonEventArgs e)
+        {
+            if (e.ChangedButton == MouseButton.Right && isDrawingConnection)
+            {
+                Point mousePos = e.GetPosition(MainCanvas);
+                IInputElement elementUnderMouse = MainCanvas.InputHitTest(mousePos);
+                BlockControl? target = FindParentBlock(elementUnderMouse as DependencyObject);
+
+                if (target != null && target != connectionSource && connectionSource != null)
+                {
+                    if (connectionSource.Type == BlockType.Condition)
+                    {
+                        // Показуємо меню вибору True/False
+                        ShowBranchMenu(connectionSource, target, mousePos);
+                    }
+                    else
+                    {
+                        // Для звичайного блоку створюємо стандартний зв'язок
+                        FinalizeConnection(connectionSource, target, "Normal");
+                    }
+                }
+                else
+                {
+                    if (tempConnection != null) MainCanvas.Children.Remove(tempConnection);
+                }
+
+                CleanupDrawingState();
+                e.Handled = true;
+            }
+        }
+
         private void Canvas_MouseMove(object sender, MouseEventArgs e)
         {
+            Point mousePos = e.GetPosition(MainCanvas);
+
+            if (isDrawingConnection && tempConnection != null && connectionSource != null)
+            {
+                tempConnection.Update(connectionSource.GetOutputPoint(), mousePos);
+            }
+
             if (selectedElement != null && selectedElement.IsMouseCaptured)
             {
-                var mousePos = e.GetPosition(MainCanvas);
                 Canvas.SetLeft(selectedElement, mousePos.X - offset.X);
                 Canvas.SetTop(selectedElement, mousePos.Y - offset.Y);
+
+                // Оновлюємо всі існуючі стрілки
+                foreach (var conn in connections)
+                {
+                    if (conn.Source != null && conn.Target != null)
+                        conn.Update(conn.Source.GetOutputPoint(), conn.Target.GetInputPoint());
+                }
             }
         }
 
         private void Canvas_MouseUp(object sender, MouseButtonEventArgs e)
         {
-            selectedElement?.ReleaseMouseCapture();
-            selectedElement = null;
+            if (e.ChangedButton == MouseButton.Left)
+            {
+                selectedElement?.ReleaseMouseCapture();
+                selectedElement = null;
+            }
         }
 
         private void txtCommand_TextChanged(object sender, TextChangedEventArgs e)
@@ -90,17 +159,25 @@ namespace FlowchartThreaderer
         {
             if (lastSelectedBlock != null)
             {
-                // 1. Видаляємо з канви
+                // Видаляємо стрілки, пов'язані з цим блоком
+                var toRemove = connections.FindAll(c => c.Source == lastSelectedBlock || c.Target == lastSelectedBlock);
+                foreach (var conn in toRemove)
+                {
+                    MainCanvas.Children.Remove(conn);
+                    connections.Remove(conn);
+                }
+
+                // Видаляємо з канви
                 MainCanvas.Children.Remove(lastSelectedBlock);
 
-                // 2. Очищаємо текстове поле, якщо видалили поточний блок
+                // Очищаємо текстове поле, якщо видалили поточний блок
                 if (txtCommand.Tag == lastSelectedBlock)
                 {
                     txtCommand.Tag = null;
                     txtCommand.Text = "";
                 }
 
-                // 3. Скидаємо посилання
+                // Скидаємо посилання
                 lastSelectedBlock = null;
             }
             else
@@ -116,6 +193,55 @@ namespace FlowchartThreaderer
             lastSelectedBlock = null;
             txtCommand.Tag = null;
             txtCommand.Text = "";
+        }
+
+        // Допоміжний метод для пошуку батьківського BlockControl
+        private BlockControl? FindParentBlock(DependencyObject? child)
+        {
+            while (child != null && !(child is BlockControl))
+            {
+                child = VisualTreeHelper.GetParent(child);
+            }
+            return child as BlockControl;
+        }
+
+        private void ShowBranchMenu(BlockControl source, BlockControl target, Point position)
+        {
+            ContextMenu menu = new ContextMenu();
+
+            MenuItem trueItem = new MenuItem { Header = "Гілка ТАК (True)", Foreground = Brushes.Green };
+            trueItem.Click += (s, e) => FinalizeConnection(source, target, "True");
+
+            MenuItem falseItem = new MenuItem { Header = "Гілка НІ (False)", Foreground = Brushes.Red };
+            falseItem.Click += (s, e) => FinalizeConnection(source, target, "False");
+
+            menu.Items.Add(trueItem);
+            menu.Items.Add(falseItem);
+
+            menu.PlacementTarget = MainCanvas;
+            menu.IsOpen = true;
+        }
+
+        private void FinalizeConnection(BlockControl source, BlockControl target, string type)
+        {
+            // Якщо ми створювали тимчасову стрілку в Block_MouseDown, використаємо її
+            // або створимо нову, якщо меню затрималося
+            var conn = new ConnectionControl { Source = source, Target = target };
+            if (type != "Normal") conn.SetType(type);
+
+            conn.Update(source.GetOutputPoint(), target.GetInputPoint());
+            MainCanvas.Children.Add(conn);
+            Panel.SetZIndex(conn, -1);
+            connections.Add(conn);
+        }
+
+        private void CleanupDrawingState()
+        {
+            if (tempConnection != null) MainCanvas.Children.Remove(tempConnection);
+            tempConnection = null;
+            isDrawingConnection = false;
+            connectionSource?.ReleaseMouseCapture();
+            connectionSource = null;
         }
     }
 }
