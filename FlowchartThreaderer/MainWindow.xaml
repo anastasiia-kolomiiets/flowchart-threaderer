@@ -18,6 +18,8 @@
                 <Button Content="Додати дію" Click="AddAction_Click" Margin="0,5"/>
                 <Button Content="Додати умову" Click="AddCondition_Click" Margin="0,5"/>
                 <Button Content="Видалити блок" Click="DeleteBlock_Click" Margin="0,5" Background="Crimson"/>
+                <Button Content="Зберегти проект у JSON" Click="SaveProject_Click" Margin="0,5"/>
+                <Button Content="Завантажити проект з JSON" Click="LoadProject_Click" Margin="0,5"/>
             </StackPanel>
         </Border>
 

@@ -1,4 +1,7 @@
-﻿using System.Text;
+﻿using Microsoft.Win32;
+using System.IO;
+using System.Text;
+using System.Text.Json;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Data;
@@ -263,5 +266,111 @@ namespace FlowchartThreaderer
             connectionSource?.ReleaseMouseCapture();
             connectionSource = null;
         }
+
+        private void SaveProject_Click(object sender, RoutedEventArgs e)
+        {
+            var project = new ProjectData();
+
+            // Збираємо дані про всі блоки
+            var blockMap = new Dictionary<BlockControl, Guid>();
+            foreach (var child in MainCanvas.Children)
+            {
+                if (child is BlockControl block)
+                {
+                    project.Blocks.Add(new BlockData
+                    {
+                        Id = block.Id,
+                        X = Canvas.GetLeft(block),
+                        Y = Canvas.GetTop(block),
+                        Type = block.Type,
+                        Command = block.Command
+                    });
+                    blockMap[block] = block.Id;
+                }
+            }
+
+            // Збираємо дані про всі зв'язки
+            foreach (var conn in connections)
+            {
+                if (conn.Source != null && conn.Target != null)
+                {
+                    project.Connections.Add(new ConnectionData
+                    {
+                        SourceId = conn.Source.Id,
+                        TargetId = conn.Target.Id,
+                        ConnectionType = conn.ConnectionType
+                    });
+                }
+            }
+
+            // Діалог збереження
+            SaveFileDialog saveFileDialog = new SaveFileDialog();
+            saveFileDialog.Filter = "Flowchart Files (*.json)|*.json";
+            if (saveFileDialog.ShowDialog() == true)
+            {
+                string jsonString = JsonSerializer.Serialize(project, new JsonSerializerOptions { WriteIndented = true });
+                File.WriteAllText(saveFileDialog.FileName, jsonString);
+                MessageBox.Show("Проект збережено успішно!");
+            }
+        }
+
+        private void LoadProject_Click(object sender, RoutedEventArgs e)
+        {
+            OpenFileDialog openFileDialog = new OpenFileDialog();
+            openFileDialog.Filter = "Flowchart Files (*.json)|*.json";
+
+            if (openFileDialog.ShowDialog() == true)
+            {
+                // Очищаємо поточну канву
+                MainCanvas.Children.Clear();
+                connections.Clear();
+
+                string jsonString = File.ReadAllText(openFileDialog.FileName);
+                var project = JsonSerializer.Deserialize<ProjectData>(jsonString);
+
+                if (project == null) return;
+
+                // Словник для швидкого пошуку створених блоків за їх ID
+                var idToBlockMap = new Dictionary<Guid, BlockControl>();
+
+                // Відновлюємо блоки
+                foreach (var bData in project.Blocks)
+                {
+                    var block = new BlockControl(bData.Type)
+                    {
+                        Id = bData.Id,
+                        Command = bData.Command
+                    };
+                    Canvas.SetLeft(block, bData.X);
+                    Canvas.SetTop(block, bData.Y);
+
+                    // Підписуємо на події
+                    block.MouseDown += Block_MouseDown;
+                    block.MouseUp += Block_MouseUp;
+
+                    MainCanvas.Children.Add(block);
+                    idToBlockMap[bData.Id] = block;
+                }
+
+                // Відновлюємо зв'язки
+                foreach (var cData in project.Connections)
+                {
+                    if (idToBlockMap.ContainsKey(cData.SourceId) && idToBlockMap.ContainsKey(cData.TargetId))
+                    {
+                        var source = idToBlockMap[cData.SourceId];
+                        var target = idToBlockMap[cData.TargetId];
+
+                        var conn = new ConnectionControl { Source = source, Target = target };
+                        conn.SetType(cData.ConnectionType);
+                        conn.Update(source.GetOutputPoint(), target.GetInputPoint());
+
+                        MainCanvas.Children.Add(conn);
+                        Panel.SetZIndex(conn, -1);
+                        connections.Add(conn);
+                    }
+                }
+            }
+        }
+
     }
 }

@@ -18,6 +18,7 @@ namespace FlowchartThreaderer
     /// </summary>
     public partial class BlockControl : UserControl
     {
+        public Guid Id { get; set; } = Guid.NewGuid();
         public BlockType Type { get; set; }
         public string Command { get; set; } = "";
 
