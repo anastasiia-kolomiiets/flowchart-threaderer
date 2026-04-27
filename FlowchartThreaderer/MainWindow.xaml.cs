@@ -372,5 +372,19 @@ namespace FlowchartThreaderer
             }
         }
 
+        private void GenerateCode_Click(object sender, RoutedEventArgs e)
+        {
+            // Збираємо всі блоки з канви
+            var allBlocks = MainCanvas.Children.OfType<BlockControl>().ToList();
+
+            // Генеруємо код
+            string generatedCode = CodeGenerator.GenerateCSharpCode(allBlocks, connections);
+
+            // Відкриваємо вікно з результатом
+            var previewWindow = new CodePreviewWindow(generatedCode);
+            previewWindow.Owner = this;
+            previewWindow.ShowDialog();
+        }
+
     }
 }

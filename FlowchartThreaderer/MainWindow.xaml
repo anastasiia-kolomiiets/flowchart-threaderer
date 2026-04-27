@@ -20,6 +20,7 @@
                 <Button Content="Видалити блок" Click="DeleteBlock_Click" Margin="0,5" Background="Crimson"/>
                 <Button Content="Зберегти проект у JSON" Click="SaveProject_Click" Margin="0,5"/>
                 <Button Content="Завантажити проект з JSON" Click="LoadProject_Click" Margin="0,5"/>
+                <Button Content="Генерувати код C#" Click="GenerateCode_Click" Margin="0,5" Background="LightGreen"/>
             </StackPanel>
         </Border>
 
