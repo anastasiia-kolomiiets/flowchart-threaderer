@@ -100,8 +100,18 @@ namespace FlowchartThreaderer
                     }
                     else
                     {
-                        // Для звичайного блоку створюємо стандартний зв'язок
-                        FinalizeConnection(connectionSource, target, "Normal");
+                        // Перевіряємо, чи немає вже вихідного зв'язку для Action блоку
+                        bool hasConnection = connections.Any(c => c.Source == connectionSource);
+
+                        if (!hasConnection)
+                        {
+                            FinalizeConnection(connectionSource, target, "Normal");
+                        }
+                        else
+                        {
+                            MessageBox.Show("Цей блок уже має вихідний зв'язок!");
+                            if (tempConnection != null) MainCanvas.Children.Remove(tempConnection);
+                        }
                     }
                 }
                 else
@@ -209,14 +219,24 @@ namespace FlowchartThreaderer
         {
             ContextMenu menu = new ContextMenu();
 
-            MenuItem trueItem = new MenuItem { Header = "Гілка ТАК (True)", Foreground = Brushes.Green };
+            // Перевіряємо, чи вже існують такі типи зв'язків для цього блоку
+            bool hasTrue = connections.Any(c => c.Source == source && c.LabelText.Text == "Так");
+            bool hasFalse = connections.Any(c => c.Source == source && c.LabelText.Text == "Ні");
+
+            MenuItem trueItem = new MenuItem { Header = "Гілка ТАК (True)", Foreground = Brushes.Green, IsEnabled = !hasTrue };
             trueItem.Click += (s, e) => FinalizeConnection(source, target, "True");
 
-            MenuItem falseItem = new MenuItem { Header = "Гілка НІ (False)", Foreground = Brushes.Red };
+            MenuItem falseItem = new MenuItem { Header = "Гілка НІ (False)", Foreground = Brushes.Red, IsEnabled = !hasFalse };
             falseItem.Click += (s, e) => FinalizeConnection(source, target, "False");
 
             menu.Items.Add(trueItem);
             menu.Items.Add(falseItem);
+
+            if (hasTrue && hasFalse)
+            {
+                menu.Items.Clear();
+                menu.Items.Add(new MenuItem { Header = "Усі виходи умови вже зайняті", IsEnabled = false });
+            }
 
             menu.PlacementTarget = MainCanvas;
             menu.IsOpen = true;

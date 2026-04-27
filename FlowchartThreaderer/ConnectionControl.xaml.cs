@@ -21,6 +21,8 @@ namespace FlowchartThreaderer
         public BlockControl? Source { get; set; }
         public BlockControl? Target { get; set; }
 
+        public string ConnectionType { get; private set; } = "Normal";
+
         public ConnectionControl()
         {
             InitializeComponent();
@@ -45,6 +47,7 @@ namespace FlowchartThreaderer
 
         public void SetType(string type)
         {
+            ConnectionType = type;
             if (type == "True")
             {
                 ConnectorLine.Stroke = ArrowHead.Fill = Brushes.Green;
