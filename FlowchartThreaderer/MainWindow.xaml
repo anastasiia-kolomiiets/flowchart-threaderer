@@ -17,12 +17,13 @@
             <StackPanel>
                 <Button Content="Додати дію" Click="AddAction_Click" Margin="0,5"/>
                 <Button Content="Додати умову" Click="AddCondition_Click" Margin="0,5"/>
+                <Button Content="Видалити блок" Click="DeleteBlock_Click" Margin="0,5" Background="Crimson"/>
             </StackPanel>
         </Border>
 
         <ScrollViewer Grid.Column="1" HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Auto">
             <Canvas Name="MainCanvas" Background="White" Width="2000" Height="2000" 
-                    MouseMove="Canvas_MouseMove" MouseUp="Canvas_MouseUp"/>
+                    MouseMove="Canvas_MouseMove" MouseUp="Canvas_MouseUp" MouseDown="MainCanvas_MouseDown"/>
         </ScrollViewer>
 
         <Border Grid.Column="2" Background="#F9F9F9" Padding="10">

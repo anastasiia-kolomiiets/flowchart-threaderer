@@ -38,5 +38,19 @@ namespace FlowchartThreaderer
         {
             TxtCommand.Text = string.IsNullOrWhiteSpace(Command) ? "Команда" : Command;
         }
+
+        public void Select()
+        {
+            var redBrush = Brushes.Crimson;
+            RectShape.Stroke = redBrush;
+            RhombShape.Stroke = redBrush;
+        }
+
+        public void Unselect()
+        {
+            var blackBrush = Brushes.Black;
+            RectShape.Stroke = blackBrush;
+            RhombShape.Stroke = blackBrush;
+        }
     }
 }

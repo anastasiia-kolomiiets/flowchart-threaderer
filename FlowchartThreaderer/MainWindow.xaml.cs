@@ -18,6 +18,7 @@ namespace FlowchartThreaderer
     {
         private BlockControl? selectedElement;
         private Point offset;
+        private BlockControl? lastSelectedBlock; // Зберігаємо посилання на останній вибраний блок
 
         public MainWindow()
         {
@@ -39,8 +40,15 @@ namespace FlowchartThreaderer
 
         private void Block_MouseDown(object sender, MouseButtonEventArgs e)
         {
+            // Знімаємо виділення з попереднього блоку
+            lastSelectedBlock?.Unselect();
+
             selectedElement = sender as BlockControl;
             if (selectedElement == null) return;
+
+            // Виділяємо новий блок
+            lastSelectedBlock = selectedElement;
+            lastSelectedBlock.Select();
 
             offset = e.GetPosition(selectedElement);
             selectedElement.CaptureMouse();
@@ -76,6 +84,38 @@ namespace FlowchartThreaderer
                 block.Command = txtCommand.Text;
                 block.UpdateText();
             }
+        }
+
+        private void DeleteBlock_Click(object sender, RoutedEventArgs e)
+        {
+            if (lastSelectedBlock != null)
+            {
+                // 1. Видаляємо з канви
+                MainCanvas.Children.Remove(lastSelectedBlock);
+
+                // 2. Очищаємо текстове поле, якщо видалили поточний блок
+                if (txtCommand.Tag == lastSelectedBlock)
+                {
+                    txtCommand.Tag = null;
+                    txtCommand.Text = "";
+                }
+
+                // 3. Скидаємо посилання
+                lastSelectedBlock = null;
+            }
+            else
+            {
+                MessageBox.Show("Спочатку виберіть блок на канві, клікнувши по ньому.");
+            }
+        }
+
+        private void MainCanvas_MouseDown(object sender, MouseButtonEventArgs e)
+        {
+            // Якщо клікнули по порожньому місцю канви
+            lastSelectedBlock?.Unselect();
+            lastSelectedBlock = null;
+            txtCommand.Tag = null;
+            txtCommand.Text = "";
         }
     }
 }
