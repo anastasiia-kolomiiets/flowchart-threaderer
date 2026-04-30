@@ -27,11 +27,49 @@ namespace FlowchartThreaderer
         private ConnectionControl? tempConnection;
         private bool isDrawingConnection = false;
         private BlockControl? connectionSource;
-        private List<ConnectionControl> connections = new List<ConnectionControl>();
+
+        // Зберігаємо список зв'язків для кожного потоку (блок-схеми на окремій вкладці)
+        private Dictionary<Canvas, List<ConnectionControl>> tabConnections = new Dictionary<Canvas, List<ConnectionControl>>();
+
+        private Canvas? currentCanvas;
+        private List<ConnectionControl>? currentConnections;
 
         public MainWindow()
         {
             InitializeComponent();
+            AddNewThread_Click(null, null); // Створюємо першу блок-схему при запуску
+        }
+
+        private void AddNewThread_Click(object sender, RoutedEventArgs? e)
+        {
+            if (FlowchartTabs.Items.Count >= 100) return; // Обмеження 100 потоків
+
+            var newCanvas = new Canvas { Background = Brushes.White, Width = 2000, Height = 2000 };
+
+            // Підключаємо події до нової канви
+            newCanvas.MouseMove += Canvas_MouseMove;
+            newCanvas.MouseDown += Canvas_MouseDown;
+            newCanvas.MouseUp += Canvas_MouseUp;
+
+            var newTab = new TabItem { Header = $"Потік {FlowchartTabs.Items.Count + 1}", Content = newCanvas };
+            FlowchartTabs.Items.Add(newTab);
+            tabConnections[newCanvas] = new List<ConnectionControl>();
+            FlowchartTabs.SelectedItem = newTab;
+        }
+
+        private void FlowchartTabs_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        {
+            if (FlowchartTabs.SelectedItem is TabItem selectedTab && selectedTab.Content is Canvas canvas)
+            {
+                currentCanvas = canvas;
+                currentConnections = tabConnections[canvas];
+            }
+
+            // Скидаємо виділення при переході між вкладками
+            lastSelectedBlock?.Unselect();
+            lastSelectedBlock = null;
+            txtCommand.Tag = null;
+            txtCommand.Text = "";
         }
 
         private void AddAction_Click(object sender, RoutedEventArgs e) => AddBlock(BlockType.Action);
@@ -39,17 +77,27 @@ namespace FlowchartThreaderer
 
         private void AddBlock(BlockType type)
         {
+            if (currentCanvas == null) return;
+
+            if (currentCanvas.Children.OfType<BlockControl>().Count() >= 100)
+            {
+                MessageBox.Show("Ліміт 100 блоків на одну схему вичерпано.");
+                return;
+            }
+
             var block = new BlockControl(type);
             Canvas.SetLeft(block, 50);
             Canvas.SetTop(block, 50);
 
             block.MouseDown += Block_MouseDown;
             block.MouseUp += Block_MouseUp; // Додаємо подію відпускання для стрілок
-            MainCanvas.Children.Add(block);
+            currentCanvas.Children.Add(block);
         }
 
         private void Block_MouseDown(object sender, MouseButtonEventArgs e)
         {
+                        if (currentCanvas == null) return;
+
             if (e.ChangedButton == MouseButton.Right) // Малювання стрілки
             {
                 connectionSource = sender as BlockControl;
@@ -57,7 +105,7 @@ namespace FlowchartThreaderer
                 {
                     isDrawingConnection = true;
                     tempConnection = new ConnectionControl();
-                    MainCanvas.Children.Add(tempConnection);
+                    currentCanvas.Children.Add(tempConnection);
                     Panel.SetZIndex(tempConnection, -1);
                     connectionSource.CaptureMouse();
                 }
@@ -88,10 +136,12 @@ namespace FlowchartThreaderer
 
         private void Block_MouseUp(object sender, MouseButtonEventArgs e)
         {
+            if (currentCanvas == null || currentConnections == null) return;
+
             if (e.ChangedButton == MouseButton.Right && isDrawingConnection)
             {
-                Point mousePos = e.GetPosition(MainCanvas);
-                IInputElement elementUnderMouse = MainCanvas.InputHitTest(mousePos);
+                Point mousePos = e.GetPosition(currentCanvas);
+                IInputElement elementUnderMouse = currentCanvas.InputHitTest(mousePos);
                 BlockControl? target = FindParentBlock(elementUnderMouse as DependencyObject);
 
                 if (target != null && target != connectionSource && connectionSource != null)
@@ -104,7 +154,7 @@ namespace FlowchartThreaderer
                     else
                     {
                         // Перевіряємо, чи немає вже вихідного зв'язку для Action блоку
-                        bool hasConnection = connections.Any(c => c.Source == connectionSource);
+                        bool hasConnection = currentConnections.Any(c => c.Source == connectionSource);
 
                         if (!hasConnection)
                         {
@@ -113,13 +163,13 @@ namespace FlowchartThreaderer
                         else
                         {
                             MessageBox.Show("Цей блок уже має вихідний зв'язок!");
-                            if (tempConnection != null) MainCanvas.Children.Remove(tempConnection);
+                            if (tempConnection != null) currentCanvas.Children.Remove(tempConnection);
                         }
                     }
                 }
                 else
                 {
-                    if (tempConnection != null) MainCanvas.Children.Remove(tempConnection);
+                    if (tempConnection != null) currentCanvas.Children.Remove(tempConnection);
                 }
 
                 CleanupDrawingState();
@@ -129,7 +179,8 @@ namespace FlowchartThreaderer
 
         private void Canvas_MouseMove(object sender, MouseEventArgs e)
         {
-            Point mousePos = e.GetPosition(MainCanvas);
+            if (currentCanvas == null) return;
+            Point mousePos = e.GetPosition(currentCanvas);
 
             if (isDrawingConnection && tempConnection != null && connectionSource != null)
             {
@@ -142,10 +193,14 @@ namespace FlowchartThreaderer
                 Canvas.SetTop(selectedElement, mousePos.Y - offset.Y);
 
                 // Оновлюємо всі існуючі стрілки
-                foreach (var conn in connections)
+                if (currentConnections != null)
                 {
-                    if (conn.Source != null && conn.Target != null)
-                        conn.Update(conn.Source.GetOutputPoint(), conn.Target.GetInputPoint());
+                    var attachedConnections = currentConnections.Where(c => c.Source == selectedElement || c.Target == selectedElement);
+                    foreach (var conn in attachedConnections)
+                    {
+                        if (conn.Source != null && conn.Target != null)
+                            conn.Update(conn.Source.GetOutputPoint(), conn.Target.GetInputPoint());
+                    }
                 }
             }
         }
@@ -159,6 +214,15 @@ namespace FlowchartThreaderer
             }
         }
 
+        private void Canvas_MouseDown(object sender, MouseButtonEventArgs e)
+        {
+            // Якщо клікнули по порожньому місцю канви
+            lastSelectedBlock?.Unselect();
+            lastSelectedBlock = null;
+            txtCommand.Tag = null;
+            txtCommand.Text = "";
+        }
+
         private void txtCommand_TextChanged(object sender, TextChangedEventArgs e)
         {
             if (txtCommand.Tag is BlockControl block)
@@ -170,18 +234,18 @@ namespace FlowchartThreaderer
 
         private void DeleteBlock_Click(object sender, RoutedEventArgs e)
         {
-            if (lastSelectedBlock != null)
+            if (lastSelectedBlock != null && currentCanvas != null && currentConnections != null)
             {
                 // Видаляємо стрілки, пов'язані з цим блоком
-                var toRemove = connections.FindAll(c => c.Source == lastSelectedBlock || c.Target == lastSelectedBlock);
+                var toRemove = currentConnections.FindAll(c => c.Source == lastSelectedBlock || c.Target == lastSelectedBlock);
                 foreach (var conn in toRemove)
                 {
-                    MainCanvas.Children.Remove(conn);
-                    connections.Remove(conn);
+                    currentCanvas.Children.Remove(conn);
+                    currentConnections.Remove(conn);
                 }
 
                 // Видаляємо з канви
-                MainCanvas.Children.Remove(lastSelectedBlock);
+                currentCanvas.Children.Remove(lastSelectedBlock);
 
                 // Очищаємо текстове поле, якщо видалили поточний блок
                 if (txtCommand.Tag == lastSelectedBlock)
@@ -199,15 +263,6 @@ namespace FlowchartThreaderer
             }
         }
 
-        private void MainCanvas_MouseDown(object sender, MouseButtonEventArgs e)
-        {
-            // Якщо клікнули по порожньому місцю канви
-            lastSelectedBlock?.Unselect();
-            lastSelectedBlock = null;
-            txtCommand.Tag = null;
-            txtCommand.Text = "";
-        }
-
         // Допоміжний метод для пошуку батьківського BlockControl
         private BlockControl? FindParentBlock(DependencyObject? child)
         {
@@ -220,11 +275,13 @@ namespace FlowchartThreaderer
 
         private void ShowBranchMenu(BlockControl source, BlockControl target, Point position)
         {
+            if (currentConnections == null || currentCanvas == null) return;
+
             ContextMenu menu = new ContextMenu();
 
             // Перевіряємо, чи вже існують такі типи зв'язків для цього блоку
-            bool hasTrue = connections.Any(c => c.Source == source && c.LabelText.Text == "Так");
-            bool hasFalse = connections.Any(c => c.Source == source && c.LabelText.Text == "Ні");
+            bool hasTrue = currentConnections.Any(c => c.Source == source && c.LabelText.Text == "Так");
+            bool hasFalse = currentConnections.Any(c => c.Source == source && c.LabelText.Text == "Ні");
 
             MenuItem trueItem = new MenuItem { Header = "Гілка ТАК (True)", Foreground = Brushes.Green, IsEnabled = !hasTrue };
             trueItem.Click += (s, e) => FinalizeConnection(source, target, "True");
@@ -241,26 +298,27 @@ namespace FlowchartThreaderer
                 menu.Items.Add(new MenuItem { Header = "Усі виходи умови вже зайняті", IsEnabled = false });
             }
 
-            menu.PlacementTarget = MainCanvas;
+            menu.PlacementTarget = currentCanvas;
             menu.IsOpen = true;
         }
 
         private void FinalizeConnection(BlockControl source, BlockControl target, string type)
         {
+            if (currentConnections == null || currentCanvas == null) return;
             // Якщо ми створювали тимчасову стрілку в Block_MouseDown, використаємо її
             // або створимо нову, якщо меню затрималося
             var conn = new ConnectionControl { Source = source, Target = target };
             if (type != "Normal") conn.SetType(type);
 
             conn.Update(source.GetOutputPoint(), target.GetInputPoint());
-            MainCanvas.Children.Add(conn);
+            currentCanvas.Children.Add(conn);
             Panel.SetZIndex(conn, -1);
-            connections.Add(conn);
+            currentConnections.Add(conn);
         }
 
         private void CleanupDrawingState()
         {
-            if (tempConnection != null) MainCanvas.Children.Remove(tempConnection);
+            if (tempConnection != null && currentCanvas != null) currentCanvas.Children.Remove(tempConnection);
             tempConnection = null;
             isDrawingConnection = false;
             connectionSource?.ReleaseMouseCapture();
@@ -269,11 +327,12 @@ namespace FlowchartThreaderer
 
         private void SaveProject_Click(object sender, RoutedEventArgs e)
         {
+            if (currentCanvas == null || currentConnections == null) return;
+
             var project = new ProjectData();
 
             // Збираємо дані про всі блоки
-            var blockMap = new Dictionary<BlockControl, Guid>();
-            foreach (var child in MainCanvas.Children)
+            foreach (var child in currentCanvas.Children)
             {
                 if (child is BlockControl block)
                 {
@@ -285,12 +344,11 @@ namespace FlowchartThreaderer
                         Type = block.Type,
                         Command = block.Command
                     });
-                    blockMap[block] = block.Id;
                 }
             }
 
             // Збираємо дані про всі зв'язки
-            foreach (var conn in connections)
+            foreach (var conn in currentConnections)
             {
                 if (conn.Source != null && conn.Target != null)
                 {
@@ -321,14 +379,14 @@ namespace FlowchartThreaderer
 
             if (openFileDialog.ShowDialog() == true)
             {
-                // Очищаємо поточну канву
-                MainCanvas.Children.Clear();
-                connections.Clear();
-
                 string jsonString = File.ReadAllText(openFileDialog.FileName);
                 var project = JsonSerializer.Deserialize<ProjectData>(jsonString);
 
                 if (project == null) return;
+
+                // Створюємо нову вкладку для завантаженого проекту
+                AddNewThread_Click(null, null);
+                if (currentCanvas == null || currentConnections == null) return;
 
                 // Словник для швидкого пошуку створених блоків за їх ID
                 var idToBlockMap = new Dictionary<Guid, BlockControl>();
@@ -348,7 +406,7 @@ namespace FlowchartThreaderer
                     block.MouseDown += Block_MouseDown;
                     block.MouseUp += Block_MouseUp;
 
-                    MainCanvas.Children.Add(block);
+                    currentCanvas.Children.Add(block);
                     idToBlockMap[bData.Id] = block;
                 }
 
@@ -364,9 +422,9 @@ namespace FlowchartThreaderer
                         conn.SetType(cData.ConnectionType);
                         conn.Update(source.GetOutputPoint(), target.GetInputPoint());
 
-                        MainCanvas.Children.Add(conn);
+                        currentCanvas.Children.Add(conn);
                         Panel.SetZIndex(conn, -1);
-                        connections.Add(conn);
+                        currentConnections.Add(conn);
                     }
                 }
             }
@@ -374,11 +432,13 @@ namespace FlowchartThreaderer
 
         private void GenerateCode_Click(object sender, RoutedEventArgs e)
         {
+            if (currentCanvas == null || currentConnections == null) return;
+
             // Збираємо всі блоки з канви
-            var allBlocks = MainCanvas.Children.OfType<BlockControl>().ToList();
+            var allBlocks = currentCanvas.Children.OfType<BlockControl>().ToList();
 
             // Генеруємо код
-            string generatedCode = CodeGenerator.GenerateCSharpCode(allBlocks, connections);
+            string generatedCode = CodeGenerator.GenerateCSharpCode(allBlocks, currentConnections);
 
             // Відкриваємо вікно з результатом
             var previewWindow = new CodePreviewWindow(generatedCode);
