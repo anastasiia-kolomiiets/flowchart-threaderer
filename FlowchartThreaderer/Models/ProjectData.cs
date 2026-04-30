@@ -2,7 +2,7 @@
 using System.Collections.Generic;
 using System.Text;
 
-namespace FlowchartThreaderer
+namespace FlowchartThreaderer.Models
 {
     // Опис одного блоку для файлу
     public class BlockData

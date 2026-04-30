@@ -1,8 +1,9 @@
-﻿using System;
+﻿using FlowchartThreaderer.Models;
+using System;
 using System.Collections.Generic;
 using System.Text;
 
-namespace FlowchartThreaderer
+namespace FlowchartThreaderer.Services
 {
     public class CodeGenerator
     {

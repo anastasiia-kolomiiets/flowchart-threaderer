@@ -2,7 +2,7 @@
 using System.Collections.Generic;
 using System.Text;
 
-namespace FlowchartThreaderer
+namespace FlowchartThreaderer.Models
 {
     public enum BlockType { Action, Condition }
 }
