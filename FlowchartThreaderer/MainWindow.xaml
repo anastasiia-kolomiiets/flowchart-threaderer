@@ -33,6 +33,7 @@
             <StackPanel>
                 <TextBlock Text="Команда:"/>
                 <TextBox Name="txtCommand" TextChanged="txtCommand_TextChanged" Margin="0,5"/>
+                <TextBlock x:Name="lblError" Foreground="Red" TextWrapping="Wrap" Margin="0,5"/>
             </StackPanel>
         </Border>
     </Grid>

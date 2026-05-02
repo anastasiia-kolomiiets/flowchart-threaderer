@@ -2,6 +2,7 @@
 using System;
 using System.Collections.Generic;
 using System.Text;
+using System.Text.RegularExpressions;
 
 namespace FlowchartThreaderer.Services
 {
@@ -18,6 +19,9 @@ namespace FlowchartThreaderer.Services
             sb.AppendLine("{");
             sb.AppendLine("    public class FlowchartProgram");
             sb.AppendLine("    {");
+            // Спільні змінні для всіх потоків
+            sb.AppendLine("        public static int[] V = new int[100];");
+            sb.AppendLine();
             sb.AppendLine("        public void Execute()");
             sb.AppendLine("        {");
 
@@ -39,13 +43,12 @@ namespace FlowchartThreaderer.Services
                 string blockLabel = $"Block_{block.Id.ToString("N")}";
                 sb.AppendLine($"        {blockLabel}:");
 
+                // Перекладаємо команду
+                string csharpCode = TranslateToCSharp(block.Command, block.Type);
+
                 if (block.Type == BlockType.Action)
                 {
-                    // Додаємо крапку з комою, якщо користувач забув її написати
-                    string cmd = block.Command.Trim();
-                    if (!string.IsNullOrEmpty(cmd) && !cmd.EndsWith(";")) cmd += ";";
-
-                    sb.AppendLine($"            {cmd}");
+                    sb.AppendLine($"            {csharpCode}");
 
                     // Шукаємо, куди йде єдина стрілка
                     var nextConn = connections.FirstOrDefault(c => c.Source == block);
@@ -60,11 +63,10 @@ namespace FlowchartThreaderer.Services
                 }
                 else if (block.Type == BlockType.Condition)
                 {
-                    string condition = block.Command.Trim();
                     var trueConn = connections.FirstOrDefault(c => c.Source == block && c.ConnectionType == "True");
                     var falseConn = connections.FirstOrDefault(c => c.Source == block && c.ConnectionType == "False");
 
-                    sb.AppendLine($"            if ({condition})");
+                    sb.AppendLine($"            if ({csharpCode})");
                     sb.AppendLine($"            {{");
                     if (trueConn != null && trueConn.Target != null)
                         sb.AppendLine($"                goto Block_{trueConn.Target.Id.ToString("N")};");
@@ -89,5 +91,35 @@ namespace FlowchartThreaderer.Services
 
             return sb.ToString();
         }
+
+        private static string TranslateToCSharp(string command, BlockType type)
+        {
+            if (string.IsNullOrWhiteSpace(command)) return type == BlockType.Action ? ";" : "true";
+
+            // 1. Замінюємо V1, V2... на V[1], V[2]... за допомогою Regex
+            string translated = Regex.Replace(command, @"V(\d+)", "V[$1]");
+
+            // 2. Обробка специфічних команд
+            if (type == BlockType.Action)
+            {
+                if (translated.ToUpper().StartsWith("INPUT"))
+                {
+                    // INPUT V[1] -> V[1] = int.Parse(Console.ReadLine());
+                    return translated.ToUpper().Replace("INPUT ", "") + " = int.Parse(Console.ReadLine() ?? \"0\");";
+                }
+                if (translated.ToUpper().StartsWith("PRINT"))
+                {
+                    // PRINT V[1] -> Console.WriteLine(V[1]);
+                    return "Console.WriteLine(" + translated.ToUpper().Replace("PRINT ", "") + ");";
+                }
+
+                // Для V[1]=V[2] або V[1]=100 просто додаємо крапку з комою
+                return translated + ";";
+            }
+
+            // Для умов (V[1]<10) просто повертаємо як є, C# це зрозуміє
+            return translated;
+        }
+
     }
 }

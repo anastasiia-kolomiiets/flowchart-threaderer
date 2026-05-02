@@ -229,8 +229,23 @@ namespace FlowchartThreaderer
         {
             if (txtCommand.Tag is BlockControl block)
             {
-                block.Command = txtCommand.Text;
-                block.UpdateText();
+                string input = txtCommand.Text;
+
+                // Викликаємо валідатор
+                if (Services.CommandValidator.IsValid(input, block.Type, out string error))
+                {
+                    // Якщо команда валідна
+                    txtCommand.Foreground = Brushes.Black;
+                    lblError.Text = ""; // Очищаємо текст помилки в мітці
+                    block.Command = input; // Оновлюємо дані блоку
+                    block.UpdateText();    // Оновлюємо візуал
+                }
+                else
+                {
+                    // Якщо є помилка — підсвічуємо червоним
+                    txtCommand.Foreground = Brushes.Red;
+                    lblError.Text = error; // Показуємо підказку з описом помилки
+                }
             }
         }
 
