@@ -24,6 +24,7 @@
                 <Button Content="Зберегти проект" Click="SaveProject_Click" Margin="0,5"/>
                 <Button Content="Завантажити проект" Click="LoadProject_Click" Margin="0,5"/>
                 <Button Content="Генерувати код C#" Click="GenerateCode_Click" Margin="0,5" Background="LightGreen"/>
+                <Button Content="Тестування" Click="OpenTestWindow_Click" Margin="0,5" Background="Orange"/>
             </StackPanel>
         </Border>
 

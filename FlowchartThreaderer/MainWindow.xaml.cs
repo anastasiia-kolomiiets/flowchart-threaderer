@@ -463,5 +463,31 @@ namespace FlowchartThreaderer
             previewWindow.ShowDialog();
         }
 
+        private void OpenTestWindow_Click(object sender, RoutedEventArgs e)
+        {
+            if (FlowchartTabs.Items.Count == 0)
+            {
+                MessageBox.Show("Немає жодної блок-схеми.", "Помилка", MessageBoxButton.OK, MessageBoxImage.Warning);
+                return;
+            }
+
+            // Збираємо всі canvases та їх з'єднання
+            var allCanvases = new List<Canvas>();
+            var allConnections = new List<List<ConnectionControl>>();
+
+            foreach (TabItem tab in FlowchartTabs.Items)
+            {
+                if (tab.Content is Canvas canvas)
+                {
+                    allCanvases.Add(canvas);
+                    allConnections.Add(tabConnections[canvas]);
+                }
+            }
+
+            var testWin = new TestWindow(allCanvases, allConnections);
+            testWin.Owner = this;
+            testWin.ShowDialog();
+        }
+
     }
 }
