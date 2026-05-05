@@ -35,11 +35,11 @@ namespace FlowchartThreaderer.Services
         private class ExecutionState
         {
             public int[] V { get; set; } = new int[100];
-            public Guid?[] PCs { get; set; } = Array.Empty<Guid?>(); // Вказівники інструкцій для кожного потоку
+            public Guid?[] PCs { get; set; } = Array.Empty<Guid?>(); // Номе блоку, на якому стоїть зараз кожен із потоків
             public List<string> Output { get; set; } = new();
             public Queue<int> InputQueue { get; set; } = new();
             public int OperationsCount { get; set; } = 0;
-            public double BranchWeight { get; set; } = 1.0; // Для підрахунку відсотка (корінь = 1.0 або 100%)
+            public double BranchWeight { get; set; } = 1.0; // Математична вага гілки для підрахунку відсотка (корінь = 1.0 або 100%)
 
             public ExecutionState Clone()
             {

@@ -59,6 +59,56 @@ namespace FlowchartThreaderer
             FlowchartTabs.SelectedItem = newTab;
         }
 
+        private void DeleteThread_Click(object sender, RoutedEventArgs e)
+        {
+            if (FlowchartTabs.Items.Count <= 1)
+            {
+                MessageBox.Show("Не можна видалити останній потік.",
+                               "Попередження",
+                               MessageBoxButton.OK,
+                               MessageBoxImage.Warning);
+                return;
+            }
+
+            if (FlowchartTabs.SelectedItem is not TabItem selectedTab)
+                return;
+
+            if (selectedTab.Content is not Canvas canvasToDelete)
+                return;
+
+            var result = MessageBox.Show(
+                $"Видалити потік «{selectedTab.Header}» разом зі всіма блоками та зв'язками?\n\nЦю дію не можна скасувати.",
+                "Підтвердження видалення",
+                MessageBoxButton.YesNo,
+                MessageBoxImage.Question);
+
+            if (result != MessageBoxResult.Yes)
+                return;
+
+            // Видаляємо всі зв'язки з словника
+            if (tabConnections.ContainsKey(canvasToDelete))
+            {
+                // Очищаємо об'єкти з канви (на всяк випадок)
+                foreach (var conn in tabConnections[canvasToDelete].ToList())
+                {
+                    canvasToDelete.Children.Remove(conn);
+                }
+                tabConnections.Remove(canvasToDelete);
+            }
+
+            // Видаляємо вкладку
+            FlowchartTabs.Items.Remove(selectedTab);
+
+            // Оновлюємо нумерацію вкладок
+            RenumberTabs();
+
+            // Якщо після видалення немає вибраної вкладки — вибираємо першу
+            if (FlowchartTabs.SelectedItem == null && FlowchartTabs.Items.Count > 0)
+            {
+                FlowchartTabs.SelectedIndex = 0;
+            }
+        }
+
         private void FlowchartTabs_SelectionChanged(object sender, SelectionChangedEventArgs e)
         {
             if (FlowchartTabs.SelectedItem is TabItem selectedTab && selectedTab.Content is Canvas canvas)
@@ -98,7 +148,7 @@ namespace FlowchartThreaderer
 
         private void Block_MouseDown(object sender, MouseButtonEventArgs e)
         {
-                        if (currentCanvas == null) return;
+            if (currentCanvas == null) return;
 
             if (e.ChangedButton == MouseButton.Right) // Малювання стрілки
             {
@@ -489,5 +539,15 @@ namespace FlowchartThreaderer
             testWin.ShowDialog();
         }
 
+        private void RenumberTabs()
+        {
+            for (int i = 0; i < FlowchartTabs.Items.Count; i++)
+            {
+                if (FlowchartTabs.Items[i] is TabItem tab)
+                {
+                    tab.Header = $"Потік {i + 1}";
+                }
+            }
+        }
     }
 }

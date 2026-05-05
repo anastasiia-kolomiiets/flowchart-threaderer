@@ -16,6 +16,7 @@
         <Border Grid.Column="0" Background="#F0F0F0" Padding="10">
             <StackPanel>
                 <Button Content="+ Новий потік (схема)" Click="AddNewThread_Click" Margin="0,5" Background="LightSkyBlue"/>
+                <Button Content="- Видалити потік" Click="DeleteThread_Click" Margin="0,5" Background="#f44336" Foreground="White"/>
                 <Separator Margin="0,10"/>
                 <Button Content="Додати дію" Click="AddAction_Click" Margin="0,5"/>
                 <Button Content="Додати умову" Click="AddCondition_Click" Margin="0,5"/>

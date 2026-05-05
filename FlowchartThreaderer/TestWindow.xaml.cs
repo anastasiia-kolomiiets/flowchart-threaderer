@@ -18,7 +18,7 @@ namespace FlowchartThreaderer
 {
     /// <summary>
     /// Логіка взаємодії для TestWindow.xaml
-    /// Реалізує автоматичне тестування з перебором усіх варіантів виконання (інтерлевінгів).
+    /// Реалізує автоматичне тестування з перебором усіх варіантів виконання.
     /// </summary>
     public partial class TestWindow : Window
     {
