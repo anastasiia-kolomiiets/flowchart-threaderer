@@ -50,6 +50,7 @@ Flowchart Threaderer — це десктопний додаток, який до
 - **Архітектура:** MVVM-подібна, розділення на `Models`, `Controls`, `Services`
 
 ## Структура проєкту
+```
 FlowchartThreaderer/
 ├── Controls/           # Кастомні елементи керування (блоки, з'єднання, канва)
 ├── Models/             # Моделі даних (TestCase, Block тощо)
@@ -58,6 +59,7 @@ FlowchartThreaderer/
 ├── TestWindow.xaml     # Вікно автоматичного тестування
 ├── CodePreviewWindow.xaml # Перегляд згенерованого коду
 └── ...
+```
 
 ## Можливості програми
 
